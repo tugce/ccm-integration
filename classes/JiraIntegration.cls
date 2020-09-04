@@ -144,6 +144,18 @@ public with sharing class JiraIntegration implements IIntegration {
         }
         set;
     }
+    
+    public Map<String, String> recordTypeMap {
+        get {
+            if(null == recordTypeMap){
+                recordTypeMap = new Map<String, String>();
+                recordTypeMap.put('bug', Schema.SobjectType.copado__User_Story__c.getRecordTypeInfosByName().get('Bug').getRecordTypeId());
+                recordTypeMap.put('story', Schema.SobjectType.copado__User_Story__c.getRecordTypeInfosByName().get('User Story').getRecordTypeId());
+            }
+            return recordTypeMap;
+        }
+        set;
+    }
 
     //INTEGRATION CORE METHODS 
     /**
@@ -325,6 +337,8 @@ public with sharing class JiraIntegration implements IIntegration {
                             if (cf == ASSIGNEE && CopadoCCMutilities.userMap.containsKey(cuEmail)) {
                                 keyValuepairTempMap.put(DEVELOPER, CopadoCCMutilities.userMap.get(cuEmail));
                             } else keyValuepairTempMap.put(cf, (String) tempObject.get(EMAIL_ADDRESS));
+                        } else if(cf == 'issuetype' && String.isNotBlank(recordTypeMap.get(String.valueOf(tempObject.get('name')))){
+                            keyValuepairTempMap.put('issuetype', recordTypeMap.get(String.valueOf(tempObject.get('name')).toLowerCase()));
                         } else if (null != tempObject.get(NAME)) {
                             keyValuepairTempMap.put(cf, (String) tempObject.get(NAME));
                         }
