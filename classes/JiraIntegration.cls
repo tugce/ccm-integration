@@ -342,6 +342,16 @@ public with sharing class JiraIntegration implements IIntegration {
                         } else if (null != tempObject.get(NAME)) {
                             keyValuepairTempMap.put(cf, (String) tempObject.get(NAME));
                         }
+                    } else if(fields.get(cf) instanceof List<Object>){ 
+                        if(cf == 'fixVersions' ){ 
+                            List<Object> tempObject = (List<Object>) fields.get(cf);
+                            if(tempObject.isEmpty()){
+                                continue;
+                            }
+                            Map<String, Object> result = (Map<String, Object>) tempObject[0];
+                            keyValuepairTempMap.put(cf.toLowerCase(),(String) result.get('name'));
+
+                        }
                     }
                 }
                 userStoryList.add(keyValuepairTempMap);
