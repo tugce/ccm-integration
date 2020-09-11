@@ -17,14 +17,15 @@ public with sharing class IntegrationFactory {
         if(type == 'Visual Studio Team Services'){
             IIntegration VSTSInstance = new VSTSIntegration();
             return VSTSInstance;
-        }
-        else if(type == 'JIRA'){
+        } else if(type == 'JIRA'){
             IIntegration JIRAInstance = new JiraIntegration();
             return JIRAInstance;
-        }
-        else{
+        } else if(type == 'Rally'){
+            IIntegration RallyInstance = new RallyIntegration();
+            return RallyInstance;
+        } else{
             //Customize the logic in this if and the following error message in order to support extra providers
-            System.debug('You can only use JIRA or VSTS integration types!');
+            System.debug('You can only use JIRA, VSTS or Rally integration types!');
             return null;
         }
     }
