@@ -73,6 +73,11 @@
                     <default>false</default>
                     <label>JIRA</label>
                 </value>
+                <value>
+                    <fullName>Rally</fullName>
+                    <default>false</default>
+                    <label>Rally</label>
+                </value>
             </valueSetDefinition>
         </valueSet>
     </fields>
