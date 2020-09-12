@@ -337,8 +337,8 @@ public with sharing class JiraIntegration implements IIntegration {
                             String cuEmail = (String) tempObject.get(EMAIL_ADDRESS);
                             if (cf == ASSIGNEE && CopadoCCMutilities.userMap.containsKey(cuEmail)) {
                                 keyValuepairTempMap.put(DEVELOPER, CopadoCCMutilities.userMap.get(cuEmail));
-                            } else if(cf == 'issuetype' && String.isNotBlank(recordTypeMap.get(String.valueOf(tempObject.get('name')))){
-                                keyValuepairTempMap.put('issuetype', recordTypeMap.get(String.valueOf(tempObject.get('name')).toLowerCase()));
+                            } else if(cf == 'issuetype' && String.isNotBlank(recordTypeMap.get(String.valueOf(tempObject.get('name'))))){
+                                keyValuepairTempMap.put('issuetype', recordTypeMap.get(String.valueOf(tempObject.get('name'))).toLowerCase());
                             } else { 
                                 keyValuepairTempMap.put(cf, (String) tempObject.get(EMAIL_ADDRESS));
                             }
