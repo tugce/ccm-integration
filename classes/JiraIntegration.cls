@@ -99,7 +99,7 @@ public with sharing class JiraIntegration implements IIntegration {
     public Map<String,String> fieldMap {
         get {
             if(null == fieldMap){
-                fieldMap = CopadoCCMutilities.returnFieldMap(pId, DONT_EXCLUDE_FROM_THIRD_PARTY);
+                fieldMap = CopadoCCMutilities.returnFieldMap(pId, ' and Exclude_from_su__c = false');
             }
             return fieldMap;
         }
@@ -144,6 +144,8 @@ public with sharing class JiraIntegration implements IIntegration {
         }
         set;
     }
+    
+    public Map<String, copado__Sprint__c> sprints;
 
     //INTEGRATION CORE METHODS 
     /**
@@ -207,6 +209,7 @@ public with sharing class JiraIntegration implements IIntegration {
      * @return List<Map<String,String>>
      */
     public List<Map<String,String>> fetchRecords(copado__Project__c selectedProject){
+        sprints = new Map<String, copado__Sprint__c>();
         pid = selectedProject.id;
         projectExtId = null != selectedProject.Project_External_Id__c ? selectedProject.Project_External_Id__c : EMPTY_CHAR;
         namedCredential = selectedProject.Copado_Integration_Setting__r.Named_Credential__c;
@@ -244,7 +247,6 @@ public with sharing class JiraIntegration implements IIntegration {
             }
             
             iterateThroughIssues(issues);
-
             if(total - startIndex < PAGINATION_SIZE){
                 shouldContinue = false;
             } else {
@@ -252,6 +254,7 @@ public with sharing class JiraIntegration implements IIntegration {
             }
         }
         CopadoCCMutilities.createLogRecords();
+        Database.upsert(sprints.values(), copado__Sprint__c.fields.Jira_External_Id__c);
         //Returns list to executeUserStoryUpsert batch class
         return this.userStoryList;
     }
@@ -312,6 +315,7 @@ public with sharing class JiraIntegration implements IIntegration {
             if (null != currentIssue.get(FIELDS_STRING)) {
                 Map<String, Object> fields = (Map<String, Object>) currentIssue.get(FIELDS_STRING);
                 for (String cf : fields.keySet()) {
+                    system.debug(cf + ' ' + fields.get(cf));
                     //Prepares values from String
                     if (fields.get(cf) instanceof String || fields.get(cf) instanceof Integer || fields.get(cf) instanceof Decimal || fields.get(cf) instanceof Double || fields.get(cf) == null) {
                         keyValuepairTempMap.put(cf, String.valueOf(fields.get(cf)));
@@ -327,6 +331,16 @@ public with sharing class JiraIntegration implements IIntegration {
                             } else keyValuepairTempMap.put(cf, (String) tempObject.get(EMAIL_ADDRESS));
                         } else if (null != tempObject.get(NAME)) {
                             keyValuepairTempMap.put(cf, (String) tempObject.get(NAME));
+                        }
+                    } else if(fields.get(cf) instanceof List<Object>){ //Jira array type
+                        if(cf == 'SPRINT_FIELD_IN_JIRA' && fields.get(cf) != null){ //sprint field custom key
+                            List<Object> tempObject = (List<Object>) fields.get(cf);
+                            Map<String, Object> tempResult = (Map<String, Object>)tempObject[0];
+                            Integer extId = Integer.valueOf(tempResult.get('id'));
+                            copado__Sprint__c upsertSprint = new copado__Sprint__c(Jira_External_Id__c = String.valueOf(extId), Name = (String)tempResult.get('name'), copado__Project__c = pId);
+                            sprints.put(String.valueOf(extId), upsertSprint);
+                            keyValuepairTempMap.put(cf, String.valueOf(extId));
+                            
                         }
                     }
                 }
@@ -346,7 +360,7 @@ public with sharing class JiraIntegration implements IIntegration {
             }
         }
     }
-
+    
     /**
      * Wrapper classes for direct casting of Transition Callout response
      */
