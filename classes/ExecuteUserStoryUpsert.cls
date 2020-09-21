@@ -37,14 +37,25 @@ global class ExecuteUserStoryUpsert implements Database.Batchable<Object>,Databa
                 s = s.toLowerCase();
                 //puts the value on sf Object if the current user story item value Map stores current field Map keyset
                 if(tempMap.containsKey(fieldMap.get(s))){
-                    sobj.put(s,CopadoCCMutilities.returnCastedValue(tempMap.get(fieldMap.get(s)),s));
+                     if(s == 'copado__sprint__c' && CopadoCCMutilities.returnCastedValue(tempMap.get(fieldMap.get(s)),s) != null){
+                        Sobject sprintObj = Schema.getGlobalDescribe().get(s).newSObject();
+                        sprintObj.put('Jira_External_Id__c', CopadoCCMutilities.returnCastedValue(tempMap.get(fieldMap.get(s)),s));
+                        sobj.putsObject(copado__User_Story__c.copado__Sprint__c.getDescribe().getSObjectField(), sprintObj);
+                    } else {
+                        sobj.put(s,CopadoCCMutilities.returnCastedValue(tempMap.get(fieldMap.get(s)),s));
+                    }
                 }
             }
             userStories2Upsert.add((copado__User_Story__c)sobj);
         }
         try {
             //performs upsert based on third party id
-            upsert userStories2Upsert External_Id__c;
+            List<Database.UpsertResult> results = Database.upsert(userStories2Upsert, copado__User_Story__c.fields.External_Id__c, false);
+            for(Database.UpsertResult ur : results){
+                if(!ur.isSuccess()){
+                    System.debug('error occurred: ' + ur);
+                }
+            }
         }catch(DmlException ex){
             System.debug('here is the exception==> '+ex.getMessage());
         }
