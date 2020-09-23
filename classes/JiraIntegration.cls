@@ -99,17 +99,17 @@ public with sharing class JiraIntegration implements IIntegration {
     public Map<String,String> fieldMap {
         get {
             if(null == fieldMap){
-                fieldMap = CopadoCCMutilities.returnFieldMap(pId, DONT_EXCLUDE_FROM_THIRD_PARTY);
+                fieldMap = CopadoCCMutilities.returnFieldMap(pId, ' and Exclude_from_su__c = false');
             }
             return fieldMap;
         }
         set;
     }
     
-    public String fieldsToFetch {
+    public String fieldsToFetch { 
         get {
             if(String.isBlank(fieldsToFetch)){
-                fieldsToFetch = String.join( fieldMap.values(),  COMMA) + COMMA + ASSIGNEE + COMMA + ID_STRING + COMMA + KEY_STRING + COMMA + PROJECTID;
+                fieldsToFetch = String.join( fieldMap.values(),  COMMA) + COMMA + ASSIGNEE  + COMMA + 'fixVersions' + COMMA + ID_STRING + COMMA + KEY_STRING + COMMA + PROJECTID;
             }
             return fieldsToFetch;
         }
@@ -144,6 +144,9 @@ public with sharing class JiraIntegration implements IIntegration {
         }
         set;
     }
+    
+    public Map<String, copado__Sprint__c> sprints;
+    public Map<String, copado__Release__c> releases;
 
     //INTEGRATION CORE METHODS 
     /**
@@ -207,6 +210,8 @@ public with sharing class JiraIntegration implements IIntegration {
      * @return List<Map<String,String>>
      */
     public List<Map<String,String>> fetchRecords(copado__Project__c selectedProject){
+        sprints = new Map<String, copado__Sprint__c>();
+        releases = new Map<String, copado__Release__c>();
         pid = selectedProject.id;
         projectExtId = null != selectedProject.Project_External_Id__c ? selectedProject.Project_External_Id__c : EMPTY_CHAR;
         namedCredential = selectedProject.Copado_Integration_Setting__r.Named_Credential__c;
@@ -216,6 +221,7 @@ public with sharing class JiraIntegration implements IIntegration {
         Integer startIndex = 0;
         Boolean shouldContinue = true;
         Integer total;
+        System.debug('fieldsToFetch:: ' + fieldsToFetch);
         
         //Gets issues via JQR
         while(shouldContinue) {
@@ -244,7 +250,6 @@ public with sharing class JiraIntegration implements IIntegration {
             }
             
             iterateThroughIssues(issues);
-
             if(total - startIndex < PAGINATION_SIZE){
                 shouldContinue = false;
             } else {
@@ -252,6 +257,8 @@ public with sharing class JiraIntegration implements IIntegration {
             }
         }
         CopadoCCMutilities.createLogRecords();
+        Database.upsert(sprints.values(), copado__Sprint__c.fields.Jira_External_Id__c);
+        Database.upsert(releases.values(), copado__Release__c.fields.Jira_External_Id__c);
         //Returns list to executeUserStoryUpsert batch class
         return this.userStoryList;
     }
@@ -302,6 +309,7 @@ public with sharing class JiraIntegration implements IIntegration {
     //INTEGRATION HELPER METHODS
     private void iterateThroughIssues(List<Object> issues){
         Map<String, String> keyValuepairTempMap;
+        
         for (Object issue : issues) {
             keyValuepairTempMap = new Map<String, String>();
             Map<String, Object> currentIssue = (Map<String, Object>) issue;
@@ -312,6 +320,7 @@ public with sharing class JiraIntegration implements IIntegration {
             if (null != currentIssue.get(FIELDS_STRING)) {
                 Map<String, Object> fields = (Map<String, Object>) currentIssue.get(FIELDS_STRING);
                 for (String cf : fields.keySet()) {
+                    system.debug(cf + ' ' + fields.get(cf));
                     //Prepares values from String
                     if (fields.get(cf) instanceof String || fields.get(cf) instanceof Integer || fields.get(cf) instanceof Decimal || fields.get(cf) instanceof Double || fields.get(cf) == null) {
                         keyValuepairTempMap.put(cf, String.valueOf(fields.get(cf)));
@@ -328,6 +337,29 @@ public with sharing class JiraIntegration implements IIntegration {
                         } else if (null != tempObject.get(NAME)) {
                             keyValuepairTempMap.put(cf, (String) tempObject.get(NAME));
                         }
+                    } else if(fields.get(cf) instanceof List<Object>){ //Jira array type
+                        if(cf == 'customfield_10022' && fields.get(cf) != null){ //sprint field custom key
+                            List<Object> tempObject = (List<Object>) fields.get(cf);
+                            Map<String, Object> tempResult = (Map<String, Object>)tempObject[0];
+                            System.debug(tempResult.get('id') + ' ' + tempResult.get('name'));
+                            Integer extId = Integer.valueOf(tempResult.get('id'));
+                            copado__Sprint__c upsertSprint = new copado__Sprint__c(Jira_External_Id__c = String.valueOf(extId), Name = (String)tempResult.get('name'), copado__Project__c = pId);
+                            sprints.put(String.valueOf(extId), upsertSprint);
+                            keyValuepairTempMap.put(cf, String.valueOf(extId));
+                            
+                        } else if(cf == 'fixVersions'){ 
+                            System.debug(cf + ' ' + fields.get(cf));
+                            List<Object> tempObject = (List<Object>) fields.get(cf);
+                            if(tempObject.isEmpty()){
+                                continue;
+                            }
+                            Map<String, Object> result = (Map<String, Object>) tempObject[0];
+                            String extId = (String) result.get('id');
+                            String extName = (String) result.get('name');
+                            copado__Release__c upsertRelease = new copado__Release__c(Jira_External_Id__c = extId, Name = extName, copado__Project__c = pId);
+                            keyValuepairTempMap.put(cf.toLowerCase(), extId);
+							releases.put(extId, upsertRelease);
+                        } 
                     }
                 }
                 userStoryList.add(keyValuepairTempMap);
@@ -346,7 +378,7 @@ public with sharing class JiraIntegration implements IIntegration {
             }
         }
     }
-
+    
     /**
      * Wrapper classes for direct casting of Transition Callout response
      */
