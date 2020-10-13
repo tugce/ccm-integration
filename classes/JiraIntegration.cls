@@ -99,7 +99,7 @@ public with sharing class JiraIntegration implements IIntegration {
     public Map<String,String> fieldMap {
         get {
             if(null == fieldMap){
-                fieldMap = CopadoCCMutilities.returnFieldMap(pId, ' and Exclude_from_su__c = false');
+                fieldMap = CopadoCCMutilities.returnFieldMap(pId, ' and Exclude_from_tpu__c = false');
             }
             return fieldMap;
         }
